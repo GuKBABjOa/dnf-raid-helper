@@ -11,13 +11,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "dotenv": "^17.4.2",
     "electron-store": "^8.2.0",
     "node-html-parser": "^7.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "screenshot-desktop": "^1.15.3",
     "sharp": "^0.34.5",
-    "tesseract.js": "^7.0.0",
     "zustand": "^5.0.1"
   },
   "devDependencies": {

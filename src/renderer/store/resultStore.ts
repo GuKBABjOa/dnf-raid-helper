@@ -17,6 +17,7 @@ interface ResultStore {
   candidateIndex: number;        // 현재 표시 중인 후보 인덱스 (success 상태에서만 의미 있음)
   clearResult: () => void;
   runCapture: (region: RectBounds) => Promise<void>;
+  runLookup: (name: string) => Promise<void>;
   nextCandidate: () => void;
   prevCandidate: () => void;
 }
@@ -43,6 +44,18 @@ export const useResultStore = create<ResultStore>((set, get) => ({
     set({ result: null, isRunning: true, candidateIndex: 0 });
     try {
       const result = await window.electronAPI.capture.run({ region });
+      set({ result, candidateIndex: 0 });
+    } catch {
+      set({ result: { status: 'ocr_failed', ocrResult: null } });
+    } finally {
+      set({ isRunning: false });
+    }
+  },
+
+  runLookup: async (name: string) => {
+    set({ result: null, isRunning: true, candidateIndex: 0 });
+    try {
+      const result = await window.electronAPI.capture.lookupByName({ name });
       set({ result, candidateIndex: 0 });
     } catch {
       set({ result: { status: 'ocr_failed', ocrResult: null } });

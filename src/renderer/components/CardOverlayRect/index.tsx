@@ -15,6 +15,7 @@ export function CardOverlayRect() {
   const candidateIndex = useResultStore((s) => s.candidateIndex);
   const nextCandidate = useResultStore((s) => s.nextCandidate);
   const prevCandidate = useResultStore((s) => s.prevCandidate);
+  const runLookup = useResultStore((s) => s.runLookup);
 
   const isActive = mode === 'edit';
 
@@ -39,6 +40,7 @@ export function CardOverlayRect() {
         candidateIndex={candidateIndex}
         onPrev={prevCandidate}
         onNext={nextCandidate}
+        onSearch={runLookup}
       />
     </ResizableDragFrame>
   );

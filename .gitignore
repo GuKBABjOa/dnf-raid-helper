@@ -1,4 +1,8 @@
 node_modules
 dist
+out
 .env
 .claude/settings.local.json
+server/dist
+server/node_modules
+server/codes.json

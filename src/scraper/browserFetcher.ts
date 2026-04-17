@@ -24,6 +24,18 @@ import { BrowserWindow } from 'electron';
 let fetcherWindow: BrowserWindow | null = null;
 let isBusy = false;
 
+type SearchRenderSnapshot = {
+  hasResultContainer: boolean;
+  hasItems: boolean;
+  resultName: string;
+  htmlLength: number;
+};
+
+type SearchRenderState =
+  | { kind: 'has_items'; snapshot: SearchRenderSnapshot }
+  | { kind: 'settled_empty'; snapshot: SearchRenderSnapshot }
+  | { kind: 'timeout'; snapshot: SearchRenderSnapshot | null };
+
 // ─── 초기화 ───────────────────────────────────────────────────────────────────
 
 function getOrCreateWindow(): BrowserWindow {
@@ -90,9 +102,13 @@ export async function fetchHtmlWithBrowser(url: string): Promise<string> {
       win.loadURL(url);
     });
 
-    // did-finish-load 후 React가 렌더링할 때까지 `.sr-result` 폴링
-    const rendered = await pollForElement(win, '.sr-result', 8_000);
-    console.log('[browserFetcher] .sr-result 감지:', rendered);
+    const expectedName = extractSearchName(url);
+    const renderState = await waitForSearchResultState(win, expectedName, 8_000);
+    console.log(
+      '[browserFetcher] 검색 결과 렌더 상태:',
+      renderState.kind,
+      renderState.snapshot,
+    );
 
     const html: string = await win.webContents.executeJavaScript(
       'document.documentElement.outerHTML',
@@ -134,7 +150,7 @@ async function waitUntil(condition: () => boolean, timeoutMs: number): Promise<b
  * BrowserWindow 내에서 selector가 DOM에 나타날 때까지 폴링.
  * 나타나면 true, 타임아웃이면 false.
  */
-async function pollForElement(win: BrowserWindow, selector: string, timeoutMs: number): Promise<boolean> {
+export async function pollForElement(win: BrowserWindow, selector: string, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
@@ -148,6 +164,75 @@ async function pollForElement(win: BrowserWindow, selector: string, timeoutMs: n
     await sleep(200);
   }
   return false;
+}
+
+async function waitForSearchResultState(
+  win: BrowserWindow,
+  expectedName: string | null,
+  timeoutMs: number,
+): Promise<SearchRenderState> {
+  const start = Date.now();
+  let previousHtmlLength = -1;
+  let stableCount = 0;
+  let lastSnapshot: SearchRenderSnapshot | null = null;
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const snapshot = (await win.webContents.executeJavaScript(`
+        (() => {
+          const resultRoot = document.querySelector('.sr-result');
+          const items = resultRoot?.querySelectorAll('.scon') ?? [];
+          const resultName =
+            document.querySelector('.result-intro .re-nick span')?.textContent?.trim() ?? '';
+          const htmlLength = resultRoot?.innerHTML?.length ?? 0;
+
+          return {
+            hasResultContainer: !!resultRoot,
+            hasItems: items.length > 0,
+            resultName,
+            htmlLength,
+          };
+        })()
+      `)) as SearchRenderSnapshot;
+
+      lastSnapshot = snapshot;
+
+      if (snapshot.hasItems) {
+        return { kind: 'has_items', snapshot };
+      }
+
+      const nameReady = !expectedName || snapshot.resultName === expectedName;
+      const htmlStable = snapshot.htmlLength === previousHtmlLength;
+      stableCount = htmlStable ? stableCount + 1 : 0;
+      previousHtmlLength = snapshot.htmlLength;
+
+      // React CSR 특성상 `.sr-result` 컨테이너만 먼저 생기고 내용이 뒤늦게 들어온다.
+      // 검색어가 반영되고 빈 결과 DOM이 여러 번 동일하면 not_found로 해석할 만큼 안정화된 것으로 본다.
+      if (
+        snapshot.hasResultContainer &&
+        nameReady &&
+        !snapshot.hasItems &&
+        stableCount >= 4
+      ) {
+        return { kind: 'settled_empty', snapshot };
+      }
+    } catch {
+      // executeJavaScript 실패 (페이지 전환 중 등) 시 계속 대기
+    }
+
+    await sleep(200);
+  }
+
+  return { kind: 'timeout', snapshot: lastSnapshot };
+}
+
+function extractSearchName(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('name');
+  } catch {
+    return null;
+  }
 }
 
 function sleep(ms: number): Promise<void> {

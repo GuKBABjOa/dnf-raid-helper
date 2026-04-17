@@ -25,6 +25,7 @@ import type { CaptureRegion } from './ocr';
 export type IpcChannel =
   | 'capture:run'       // Renderer → Main: 캡처 파이프라인 실행
   | 'capture:shortcut'  // Main → Renderer: Alt+C 캡처 단축키 push (passive 모드에서만)
+  | 'lookup:byName'     // Renderer → Main: 닉네임 직접 검색
   | 'overlay:modeChange'// Main → Renderer: 모드 변경 push (글로벌 단축키 감지)
   | 'rect:save';        // Renderer → Main: Rect 위치/크기 영속화
 
@@ -36,6 +37,15 @@ export interface CaptureRunRequest {
 
 /** capture:run 응답 = PipelineResult 그대로 */
 export type CaptureRunResponse = PipelineResult;
+
+// ─── lookup:byName ─────────────────────────────────────────────────────────
+
+export interface LookupByNameRequest {
+  name: string;
+}
+
+/** lookup:byName 응답 = PipelineResult 그대로 */
+export type LookupByNameResponse = PipelineResult;
 
 // ─── overlay:modeChange ────────────────────────────────────────────────────
 

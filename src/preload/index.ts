@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OverlayMode, OverlayPersistedState } from '../types/overlay';
-import type { RectSaveRequest, ModeChangePayload, CaptureRunRequest, CaptureRunResponse } from '../types/ipc';
+import type { RectSaveRequest, ModeChangePayload, CaptureRunRequest, CaptureRunResponse, LookupByNameRequest, LookupByNameResponse } from '../types/ipc';
 
 /**
  * Renderer에서 window.electronAPI로 접근 가능한 API.
@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     /** 캡처 영역을 기준으로 파이프라인을 실행하고 PipelineResult를 반환한다. */
     run: (req: CaptureRunRequest): Promise<CaptureRunResponse> =>
       ipcRenderer.invoke('capture:run', req),
+    /** 닉네임으로 직접 던담 검색. */
+    lookupByName: (req: LookupByNameRequest): Promise<LookupByNameResponse> =>
+      ipcRenderer.invoke('lookup:byName', req),
   },
   overlay: {
     /**

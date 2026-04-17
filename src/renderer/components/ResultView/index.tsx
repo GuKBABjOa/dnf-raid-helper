@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { ScoredCandidate } from '../../../types/candidate';
 
 interface Props {
@@ -6,9 +6,13 @@ interface Props {
   candidateIndex: number;
   onPrev: () => void;
   onNext: () => void;
+  onSearch?: (name: string) => void;
 }
 
-export function ResultView({ candidates, candidateIndex, onPrev, onNext }: Props) {
+export function ResultView({ candidates, candidateIndex, onPrev, onNext, onSearch }: Props) {
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+
   const data = candidates[candidateIndex];
   const total = candidates.length;
 
@@ -85,13 +89,90 @@ export function ResultView({ candidates, candidateIndex, onPrev, onNext }: Props
     color: 'rgba(255,255,255,0.4)',
   };
 
+  const searchIconBtn: CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    cursor: 'pointer',
+    padding: '0 2px',
+    lineHeight: 1,
+  };
+
+  const searchRow: CSSProperties = {
+    display: 'flex',
+    gap: 4,
+  };
+
+  const inputStyle: CSSProperties = {
+    flex: 1,
+    background: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.25)',
+    color: '#fff',
+    borderRadius: 3,
+    padding: '3px 6px',
+    fontSize: 11,
+    outline: 'none',
+    minWidth: 0,
+  };
+
+  const searchBtn: CSSProperties = {
+    background: 'rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.25)',
+    color: '#fff',
+    borderRadius: 3,
+    padding: '3px 8px',
+    fontSize: 11,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  };
+
+  const handleSearch = () => {
+    const trimmed = searchValue.trim();
+    if (trimmed) {
+      onSearch?.(trimmed);
+      setShowSearch(false);
+      setSearchValue('');
+    }
+  };
+
   return (
     <div style={root}>
-      {/* 이름 + 서버 */}
-      <div style={nameRow}>
-        <span style={nameText}>{data.name}</span>
-        <span style={serverText}>[{data.server}]</span>
+      {/* 이름 + 서버 + 검색 토글 */}
+      <div style={{ ...nameRow, justifyContent: 'space-between' }}>
+        <div style={nameRow}>
+          <span style={nameText}>{data.name}</span>
+          <span style={serverText}>[{data.server}]</span>
+        </div>
+        {onSearch && (
+          <button
+            style={searchIconBtn}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => { setShowSearch((v) => !v); setSearchValue(''); }}
+            title="닉네임 검색"
+          >
+            🔍
+          </button>
+        )}
       </div>
+
+      {/* 인라인 검색 입력 */}
+      {showSearch && onSearch && (
+        <div style={searchRow} onMouseDown={(e) => e.stopPropagation()}>
+          <input
+            style={inputStyle}
+            value={searchValue}
+            autoFocus
+            onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSearch();
+              if (e.key === 'Escape') { setShowSearch(false); setSearchValue(''); }
+            }}
+            placeholder="닉네임 검색..."
+          />
+          <button style={searchBtn} onClick={handleSearch}>검색</button>
+        </div>
+      )}
 
       {/* 직업 */}
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{data.jobName}</div>

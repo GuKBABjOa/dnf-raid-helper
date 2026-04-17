@@ -19,7 +19,7 @@ export function scoreEngine(
 
   const breakdown: ScoreBreakdownItem[] = [
     {
-      label: stats.type === 'damage' ? '딜 수치' : '버프점수',
+      label: stats.type === 'buff' ? '버프점수' : '딜 수치',
       rawValue: stats.primaryValue,
       weight: 1,
       contribution: stats.primaryValue,

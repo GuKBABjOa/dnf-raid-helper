@@ -1,9 +1,10 @@
+import 'dotenv/config';
 import { app, BrowserWindow, globalShortcut, screen } from 'electron';
 import { join } from 'path';
 import Store from 'electron-store';
 import { registerOverlayIpc } from './ipc/overlay.ipc';
 import { registerCaptureIpc } from './ipc/capture.ipc';
-import { terminateWorker } from '../ocr/recognize';
+import { terminateProviderWorkers } from '../ocr/providerRecognize';
 import { destroyBrowserFetcher } from '../scraper/browserFetcher';
 import { LookupCache } from '../scraper/cache';
 import { DEFAULT_OVERLAY_STATE } from '../config/defaults';
@@ -105,6 +106,6 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  terminateWorker().catch(() => {});
+  terminateProviderWorkers().catch(() => {});
   destroyBrowserFetcher();
 });

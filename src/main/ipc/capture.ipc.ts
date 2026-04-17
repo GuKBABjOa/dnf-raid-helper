@@ -19,16 +19,70 @@ import { ipcMain, screen } from 'electron';
 import type { LookupCache } from '../../scraper/cache';
 import { runPipeline } from '../../pipeline/pipeline';
 import { captureScreen } from '../../ocr/capture';
-import { preprocessImage } from '../../ocr/preprocess';
-import { recognizeText } from '../../ocr/recognize';
-import { parseOcrText } from '../../ocr/ocrParser';
+
+import { recognizeTextWithProviders } from '../../ocr/providerRecognize';
+import { parseOcrPayload } from '../../ocr/providerParser';
 import { buildSearchUrl } from '../../scraper/dunjiadam';
 import { parseSearchPage } from '../../scraper/parser';
 import { fetchHtmlWithBrowser } from '../../scraper/browserFetcher';
+import { resolve as disambiguate } from '../../modules/disambiguator';
+import { resolveRole } from '../../modules/matcher/roleMatcher';
+import { matchSlots } from '../../modules/matcher/slotMatcher';
+import { scoreEngine } from '../../modules/scorer/scoreEngine';
 import type { LookupResult } from '../../types/lookup';
+import type { CharacterData } from '../../types/character';
+import type { PipelineResult, PipelineTrigger } from '../../types/pipeline';
+import type { ParsedOCRResult } from '../../types/ocr';
 import { DEFAULT_RAID_CONFIG, DEFAULT_SCORER_CONFIG } from '../../config/defaults';
-import type { CaptureRunRequest, CaptureRunResponse } from '../../types/ipc';
-import type { PipelineTrigger } from '../../types/pipeline';
+import type { CaptureRunRequest, CaptureRunResponse, LookupByNameRequest, LookupByNameResponse } from '../../types/ipc';
+
+// ─── runLookupByName ─────────────────────────────────────────────────────────
+
+async function runLookupByName(name: string, cache: LookupCache): Promise<PipelineResult> {
+  const ocrResult: ParsedOCRResult = {
+    name,
+    jobName: null,
+    renown: null,
+    confidence: 1.0,
+    rawLines: [],
+    warnings: [],
+    needsManualReview: false,
+  };
+
+  const cached = cache.get(name);
+  const cacheHit = cached !== undefined;
+  let lookupResult: LookupResult;
+  if (cacheHit) {
+    lookupResult = cached;
+  } else {
+    lookupResult = await browserLookup(name);
+    cache.set(name, lookupResult);
+  }
+
+  if (lookupResult.status === 'failed') {
+    return lookupResult.reason === 'NOT_FOUND'
+      ? { status: 'not_found', name, ocrResult }
+      : { status: 'network_error', name, reason: lookupResult.reason, ocrResult };
+  }
+
+  const dr = disambiguate(lookupResult.data, { jobName: null, renown: null });
+  if (dr.status === 'not_found') return { status: 'not_found', name, ocrResult };
+
+  const scored = dr.candidates.map((c) => {
+    const role = resolveRole({ jobName: c.jobName, statsType: c.stats.type });
+    const characterData: CharacterData = { ...c, role };
+    return scoreEngine(characterData, matchSlots(characterData, DEFAULT_RAID_CONFIG), DEFAULT_SCORER_CONFIG);
+  });
+
+  return {
+    status: 'success',
+    candidates: scored,
+    ocrResult,
+    cacheHit,
+    durationMs: 0,
+    stageDurations: [],
+  };
+}
 
 // ─── browserLookup ────────────────────────────────────────────────────────────
 
@@ -65,6 +119,15 @@ async function browserLookup(name: string): Promise<LookupResult> {
  */
 export function registerCaptureIpc(cache: LookupCache): void {
   ipcMain.handle(
+    'lookup:byName',
+    async (_event, req: LookupByNameRequest): Promise<LookupByNameResponse> => {
+      const name = req.name.trim();
+      console.log('[lookup:byName] 검색:', name);
+      return runLookupByName(name, cache);
+    },
+  );
+
+  ipcMain.handle(
     'capture:run',
     async (_event, req: CaptureRunRequest): Promise<CaptureRunResponse> => {
       const trigger: PipelineTrigger = {
@@ -86,11 +149,11 @@ export function registerCaptureIpc(cache: LookupCache): void {
 
       const pipelineResult = await runPipeline(trigger, {
         capture: captureScreen,
-        preprocess: preprocessImage,
-        recognize: recognizeText,
+        preprocess: async (img) => img,
+        recognize: recognizeTextWithProviders,
         parseOcr: (raw) => {
           console.log('[parseOcr] 원시 텍스트:\n', raw);
-          const result = parseOcrText(raw);
+          const result = parseOcrPayload(raw);
           console.log('[parseOcr] 결과:', result);
           return result;
         },

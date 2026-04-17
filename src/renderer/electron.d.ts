@@ -1,5 +1,5 @@
 import type { OverlayMode, OverlayPersistedState } from '../types/overlay';
-import type { RectSaveRequest, CaptureRunRequest, CaptureRunResponse } from '../types/ipc';
+import type { RectSaveRequest, CaptureRunRequest, CaptureRunResponse, LookupByNameRequest, LookupByNameResponse } from '../types/ipc';
 
 /**
  * contextBridge로 노출된 API 타입 선언.
@@ -10,6 +10,7 @@ declare global {
     electronAPI: {
       capture: {
         run: (req: CaptureRunRequest) => Promise<CaptureRunResponse>;
+        lookupByName: (req: LookupByNameRequest) => Promise<LookupByNameResponse>;
       };
       overlay: {
         onModeChange: (callback: (mode: OverlayMode) => void) => () => void;

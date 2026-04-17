@@ -4,6 +4,7 @@ import type { PipelineDeps } from '../../../src/pipeline/pipeline';
 import type { ParsedOCRResult, ImageBuffer } from '../../../src/types/ocr';
 import type { LookupResult } from '../../../src/types/lookup';
 import type { PipelineTrigger } from '../../../src/types/pipeline';
+import type { OCRRecognitionPayload } from '../../../src/ocr/contracts';
 import {
   DEFAULT_RAID_CONFIG,
   DEFAULT_SCORER_CONFIG,
@@ -37,6 +38,14 @@ function makeOcrResult(overrides?: Partial<ParsedOCRResult>): ParsedOCRResult {
   };
 }
 
+function makeRawOcrPayload(): OCRRecognitionPayload {
+  return {
+    name: [{ source: 'tesseract', text: '테스트', confidence: 90, zone: 'name' }],
+    job: [{ source: 'tesseract', text: '', confidence: 0, zone: 'job' }],
+    row3: [{ source: 'tesseract', text: '명성: 100001', confidence: 90, zone: 'row3' }],
+  };
+}
+
 function makeOkLookupResult(name = '테스트'): LookupResult {
   return {
     status: 'ok',
@@ -66,7 +75,7 @@ function makeDeps(overrides?: Partial<PipelineDeps>): PipelineDeps {
   return {
     capture: vi.fn().mockResolvedValue(DUMMY_BUFFER),
     preprocess: vi.fn().mockResolvedValue(DUMMY_BUFFER),
-    recognize: vi.fn().mockResolvedValue('raw ocr text'),
+    recognize: vi.fn().mockResolvedValue(makeRawOcrPayload()),
     parseOcr: vi.fn().mockReturnValue(makeOcrResult()),
     cache: { get: vi.fn().mockReturnValue(undefined), set: vi.fn() },
     lookup: vi.fn().mockResolvedValue(makeOkLookupResult()),

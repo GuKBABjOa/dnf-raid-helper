@@ -190,6 +190,30 @@
 
 ---
 
+## ADR-027: OCR 엔진을 Claude Vision 단일 JSON 호출로 교체 (2026-04-17)
+**결정:** Tesseract / PaddleOCR / EasyOCR / ClovaOCR을 모두 제거하고 Claude Vision 하나만 사용한다. 이미지 존(zone) 분할 3회 호출 방식 대신 전체 이미지를 1회 호출해 `{name, job, renown}` JSON으로 반환받는다.  
+**이유:** 존 분할 방식은 각 영역을 별도 크롭·전처리·인식해야 했고 한글/한자/특수문자 인식률이 낮았다. Claude Vision은 UI 문맥 전체를 한 번에 보고 이해하므로 다국어 닉네임(한자·번체·일본어 가나·특수문자) 인식 정확도가 압도적으로 높다. 비용도 1회 호출이므로 오히려 절감.  
+**제거된 파일:** `TesseractProvider.ts`, `PaddleOCRProvider.ts`, `EasyOCRProvider.ts`, `ClovaOCRProvider.ts`, `scripts/paddle_ocr_*.py`, `scripts/easy_ocr_worker.py`  
+**이전 전처리 제거:** sharp 기반 grayscale+3× upscale+normalize+sharpen 파이프라인 제거. Claude Vision에는 원본 컬러 이미지가 더 정확함을 실험으로 확인.
+
+---
+
+## ADR-028: 닉네임 직접 검색 기능 추가 (2026-04-17)
+**결정:** OCR 검색 외에 사용자가 닉네임을 직접 입력해 조회하는 `lookup:byName` IPC 채널을 추가한다.  
+**이유:** OCR 실패 또는 검색 not_found 상황에서 사용자가 수동으로 재시도할 방법이 없었다. 또 OCR 성공 이후에도 다른 닉네임을 확인하고 싶을 때 Alt+C를 다시 눌러야 했다.  
+**구현:** ErrorView(실패 시) 하단에 검색 입력창 자동 표시, ResultView(성공 시) 상단에 🔍 토글 버튼 추가. 검색 시 OCR 단계를 건너뛰고 던담 조회부터 시작.  
+**참고:** 편집 모드(Alt+Z)에서만 입력 가능 — passive 모드는 Electron이 `setIgnoreMouseEvents(true)`로 마우스를 게임에 투과시키기 때문.
+
+---
+
+## ADR-029: OCR 호출을 프록시 서버로 분리 (2026-04-17)
+**결정:** Electron 앱이 Anthropic API를 직접 호출하는 대신, 운영자가 관리하는 Express 프록시 서버(`server/`)를 경유하도록 변경한다.  
+**이유:** API 키를 앱 바이너리에 내장하면 누구든 키를 추출해 무제한 과금을 일으킬 수 있다. 프록시 서버에서 초대코드(`codes.json`)로 접근을 제한하면 베타 배포 중 사용자를 통제하고 비용을 관리할 수 있다.  
+**동작 우선순위:** `SERVER_URL` + `INVITE_CODE` 환경변수가 있으면 프록시 서버 경유, `ANTHROPIC_API_KEY`만 있으면 SDK 직접 호출(로컬 개발 모드).  
+**배포 대상:** Railway (서버), electron-builder 패키지 (클라이언트)
+
+---
+
 ## ADR-026: 앱은 후보를 자동 선택하지 않는다 — 공대장이 직접 판단한다 (2026-04-11)
 **결정:** disambiguator의 auto/recommended/manual 분류를 제거한다. 대신 전체 후보를 유사도 내림차순으로 정렬해 ResultView에 표시하고, 공대장이 ← → 네비게이터로 순회하며 직접 판단한다.  
 **이유:** 공대장은 본인만의 기준(예: 길드 우선, 명성 컷, 특정 직업 선호)으로 신청을 판단한다. 앱이 "이 사람이 신청자입니다"라고 결론을 내리면 공대장의 판단 여지를 빼앗는다. 앱의 역할은 데이터를 빠르게 보여주는 것이지, 판단하는 것이 아니다.  

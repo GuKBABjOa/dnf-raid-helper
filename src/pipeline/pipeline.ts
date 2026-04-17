@@ -23,11 +23,12 @@
  */
 
 import type { PipelineResult, PipelineTrigger, StageDuration } from '../types/pipeline';
-import type { ParsedOCRResult, ImageBuffer, RawOCRText, CaptureRegion } from '../types/ocr';
+import type { ParsedOCRResult, ImageBuffer, CaptureRegion } from '../types/ocr';
 import type { LookupResult } from '../types/lookup';
 import type { CharacterData } from '../types/character';
 import type { RaidConfig } from '../types/raid';
 import type { ScorerConfig } from '../config/defaults';
+import type { OCRRecognitionPayload } from '../ocr/contracts';
 
 import { resolveRole } from '../modules/matcher/roleMatcher';
 import { matchSlots } from '../modules/matcher/slotMatcher';
@@ -46,9 +47,9 @@ export interface PipelineDeps {
   /** 이미지 전처리(노이즈 제거 등). 실패 시 원본 반환(SILENT). */
   preprocess: (img: ImageBuffer) => Promise<ImageBuffer>;
   /** OCR 텍스트 인식. 실패 시 throw → ocr_failed 반환. */
-  recognize: (img: ImageBuffer) => Promise<RawOCRText>;
+  recognize: (img: ImageBuffer) => Promise<OCRRecognitionPayload>;
   /** OCR 텍스트 → ParsedOCRResult. 실패 시 throw → ocr_failed 반환. */
-  parseOcr: (text: RawOCRText) => ParsedOCRResult;
+  parseOcr: (text: OCRRecognitionPayload) => ParsedOCRResult;
   /** LookupResult 캐시. get/set만 사용. */
   cache: Pick<import('../scraper/cache').LookupCache, 'get' | 'set'>;
   /** 던담 스크래퍼. ScrapedCharacter[] 전체를 반환하는 함수. */
@@ -102,7 +103,7 @@ export async function runPipeline(
     stageDurations.push({ stage: 'preprocess', durationMs: Date.now() - t });
   }
 
-  let rawText: RawOCRText;
+  let rawText: OCRRecognitionPayload;
   try {
     const t = Date.now();
     rawText = await deps.recognize(processedImage);
