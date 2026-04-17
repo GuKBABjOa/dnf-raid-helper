@@ -1,11 +1,12 @@
 import 'dotenv/config';
-import { app, BrowserWindow, globalShortcut, screen } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen } from 'electron';
 import { join } from 'path';
 import Store from 'electron-store';
 import { registerOverlayIpc } from './ipc/overlay.ipc';
 import { registerCaptureIpc } from './ipc/capture.ipc';
 import { terminateProviderWorkers } from '../ocr/providerRecognize';
 import { destroyBrowserFetcher } from '../scraper/browserFetcher';
+import { setInviteCode } from '../ocr/providers';
 import { LookupCache } from '../scraper/cache';
 import { DEFAULT_OVERLAY_STATE } from '../config/defaults';
 import type { OverlayPersistedState } from '../types/overlay';
@@ -14,10 +15,11 @@ import type { ModeChangePayload } from '../types/ipc';
 
 interface StoreSchema {
   overlay: OverlayPersistedState;
+  inviteCode: string | null;
 }
 
 const store = new Store<StoreSchema>({
-  defaults: { overlay: DEFAULT_OVERLAY_STATE },
+  defaults: { overlay: DEFAULT_OVERLAY_STATE, inviteCode: null },
 });
 
 // 세션 동안 유지되는 LookupResult 캐시 (LRU 200, ADR-017)
@@ -89,10 +91,40 @@ function registerShortcuts(): void {
   });
 }
 
+function registerSettingsIpc(): void {
+  ipcMain.handle('settings:getInviteCode', () => {
+    return store.get('inviteCode') ?? null;
+  });
+
+  ipcMain.handle('settings:setInviteCode', (_event, code: string) => {
+    store.set('inviteCode', code);
+    setInviteCode(code);
+    // 초대코드 저장 후 passive 모드로 전환
+    if (mainWindow) {
+      currentMode = 'passive';
+      mainWindow.setIgnoreMouseEvents(true, { forward: true });
+      const payload: ModeChangePayload = { mode: 'passive' };
+      mainWindow.webContents.send('overlay:modeChange', payload);
+    }
+  });
+}
+
 app.whenReady().then(() => {
-  registerOverlayIpc(store);
+  // 저장된 초대코드가 있으면 OCR 프로바이더에 미리 주입
+  const savedCode = store.get('inviteCode') ?? null;
+  if (savedCode) setInviteCode(savedCode);
+
+  registerOverlayIpc(store as Parameters<typeof registerOverlayIpc>[0]);
   registerCaptureIpc(lookupCache);
+  registerSettingsIpc();
   createWindow();
+
+  // 초대코드가 없으면 setup을 위해 창을 interactive하게 유지
+  if (!savedCode && mainWindow) {
+    mainWindow.setIgnoreMouseEvents(false);
+    mainWindow.focus();
+  }
+
   registerShortcuts();
 
   app.on('activate', () => {

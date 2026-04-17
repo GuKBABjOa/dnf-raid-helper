@@ -23,11 +23,13 @@ import type { CaptureRegion } from './ocr';
 
 /** 앱에서 사용하는 모든 IPC 채널 이름 */
 export type IpcChannel =
-  | 'capture:run'       // Renderer → Main: 캡처 파이프라인 실행
-  | 'capture:shortcut'  // Main → Renderer: Alt+C 캡처 단축키 push (passive 모드에서만)
-  | 'lookup:byName'     // Renderer → Main: 닉네임 직접 검색
-  | 'overlay:modeChange'// Main → Renderer: 모드 변경 push (글로벌 단축키 감지)
-  | 'rect:save';        // Renderer → Main: Rect 위치/크기 영속화
+  | 'capture:run'          // Renderer → Main: 캡처 파이프라인 실행
+  | 'capture:shortcut'     // Main → Renderer: Alt+C 캡처 단축키 push (passive 모드에서만)
+  | 'lookup:byName'        // Renderer → Main: 닉네임 직접 검색
+  | 'overlay:modeChange'   // Main → Renderer: 모드 변경 push (글로벌 단축키 감지)
+  | 'rect:save'            // Renderer → Main: Rect 위치/크기 영속화
+  | 'settings:getInviteCode'  // Renderer → Main: 저장된 초대코드 조회
+  | 'settings:setInviteCode'; // Renderer → Main: 초대코드 저장
 
 // ─── capture:run ───────────────────────────────────────────────────────────
 

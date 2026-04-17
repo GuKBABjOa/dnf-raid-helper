@@ -3,12 +3,11 @@ import type { OCRProvider, OCRRecognitionPayload } from '../contracts';
 
 /**
  * 동작 모드 우선순위:
- *   1. SERVER_URL + INVITE_CODE → 프록시 서버 경유 (배포 모드)
- *   2. ANTHROPIC_API_KEY 단독   → SDK 직접 호출 (로컬 개발 모드)
+ *   1. inviteCode 전달 → 프록시 서버 경유 (배포 모드)
+ *   2. ANTHROPIC_API_KEY 단독 → SDK 직접 호출 (로컬 개발 모드)
  */
 
-const SERVER_URL = process.env['SERVER_URL'];
-const INVITE_CODE = process.env['INVITE_CODE'];
+const PROXY_SERVER_URL = 'https://dnf-raid-helper-production.up.railway.app';
 
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -48,13 +47,11 @@ function buildPayload(parsed: ClaudeOCRJson, source: string): OCRRecognitionPayl
 
 class ProxyOCRProvider implements OCRProvider {
   public readonly source = 'claude-proxy';
-  private readonly serverUrl: string;
   private readonly inviteCode: string;
 
-  constructor(serverUrl: string, inviteCode: string) {
-    this.serverUrl = serverUrl.replace(/\/$/, '');
+  constructor(inviteCode: string) {
     this.inviteCode = inviteCode;
-    console.log(`[OCR][proxy] server=${this.serverUrl}`);
+    console.log(`[OCR][proxy] server=${PROXY_SERVER_URL}`);
   }
 
   async recognize(input: Buffer): Promise<OCRRecognitionPayload> {
@@ -62,7 +59,7 @@ class ProxyOCRProvider implements OCRProvider {
 
     let json: ClaudeOCRJson;
     try {
-      const res = await fetch(`${this.serverUrl}/ocr`, {
+      const res = await fetch(`${PROXY_SERVER_URL}/ocr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64, code: this.inviteCode }),
@@ -140,10 +137,11 @@ export class ClaudeOCRProvider implements OCRProvider {
 
 // ─── 팩토리 ───────────────────────────────────────────────────────────────────
 
-export function createOCRProvider(): OCRProvider | null {
-  // 우선순위 1: 프록시 서버
-  if (SERVER_URL && INVITE_CODE) {
-    return new ProxyOCRProvider(SERVER_URL, INVITE_CODE);
+export function createOCRProvider(inviteCode?: string | null): OCRProvider | null {
+  // 우선순위 1: 프록시 서버 (invite code 있을 때)
+  const code = inviteCode ?? process.env['INVITE_CODE'];
+  if (code) {
+    return new ProxyOCRProvider(code);
   }
 
   // 우선순위 2: SDK 직접 (로컬 개발)

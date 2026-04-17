@@ -47,4 +47,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loadState: (): Promise<OverlayPersistedState> =>
       ipcRenderer.invoke('overlay:loadState'),
   },
+
+  settings: {
+    /** 저장된 초대코드 조회 (없으면 null) */
+    getInviteCode: (): Promise<string | null> =>
+      ipcRenderer.invoke('settings:getInviteCode'),
+
+    /** 초대코드 저장 및 OCR 프로바이더 갱신 */
+    setInviteCode: (code: string): Promise<void> =>
+      ipcRenderer.invoke('settings:setInviteCode', code),
+  },
 });

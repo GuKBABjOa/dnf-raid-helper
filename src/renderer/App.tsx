@@ -1,11 +1,20 @@
-import type { CSSProperties } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { OverlayModeController } from './components/OverlayModeController';
 import { CaptureOverlayRect } from './components/CaptureOverlayRect';
 import { CardOverlayRect } from './components/CardOverlayRect';
+import { SetupModal } from './components/SetupModal';
 import { useOverlayStore } from './store/overlayStore';
 
 export function App() {
   const mode = useOverlayStore((s) => s.mode);
+  const [inviteCode, setInviteCode] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    window.electronAPI.settings.getInviteCode().then(setInviteCode);
+  }, []);
+
+  if (inviteCode === undefined) return null;
+  if (inviteCode === null) return <SetupModal onComplete={setInviteCode} />;
 
   const containerStyle: CSSProperties = {
     position: 'fixed',

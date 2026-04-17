@@ -18,6 +18,10 @@ declare global {
         saveRects: (req: RectSaveRequest) => Promise<void>;
         loadState: () => Promise<OverlayPersistedState>;
       };
+      settings: {
+        getInviteCode: () => Promise<string | null>;
+        setInviteCode: (code: string) => Promise<void>;
+      };
     };
   }
 }
