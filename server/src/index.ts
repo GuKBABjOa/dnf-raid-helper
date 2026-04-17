@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 const PORT = process.env['PORT'] ?? 3000;
@@ -10,9 +10,22 @@ if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required');
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
-const VALID_CODES = new Set<string>(
-  JSON.parse(readFileSync(join(__dirname, '../codes.json'), 'utf-8')) as string[],
-);
+function loadCodes(): Set<string> {
+  // 환경변수 우선 (Railway 등 배포환경): 쉼표로 구분된 코드 목록
+  if (process.env['INVITE_CODES']) {
+    const codes = process.env['INVITE_CODES'].split(',').map((c) => c.trim()).filter(Boolean);
+    return new Set(codes);
+  }
+  // 로컬 개발: codes.json 파일
+  const filePath = join(__dirname, '../codes.json');
+  if (existsSync(filePath)) {
+    return new Set<string>(JSON.parse(readFileSync(filePath, 'utf-8')) as string[]);
+  }
+  console.warn('[server] No INVITE_CODES env var and no codes.json — all requests will be rejected');
+  return new Set();
+}
+
+const VALID_CODES = loadCodes();
 console.log(`[server] ${VALID_CODES.size} invite codes loaded`);
 
 const PROMPT = `이 던전앤파이터 파티 신청창 UI에서 3가지를 추출해 JSON으로만 반환해줘.
