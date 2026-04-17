@@ -33,11 +33,7 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerLanguages": [
-        "Korean"
-      ],
-      "language": "1042"
+      "allowToChangeInstallationDirectory": true
     }
   },
   "dependencies": {
