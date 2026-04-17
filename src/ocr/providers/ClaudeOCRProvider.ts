@@ -138,19 +138,19 @@ export class ClaudeOCRProvider implements OCRProvider {
 // ─── 팩토리 ───────────────────────────────────────────────────────────────────
 
 export function createOCRProvider(inviteCode?: string | null): OCRProvider | null {
-  // 우선순위 1: 프록시 서버 (invite code 있을 때)
-  const code = inviteCode ?? process.env['INVITE_CODE'];
-  if (code) {
-    return new ProxyOCRProvider(code);
-  }
-
-  // 우선순위 2: SDK 직접 (로컬 개발)
+  // 우선순위 1: SDK 직접 (로컬 개발) — ANTHROPIC_API_KEY 있으면 항상 SDK 우선
   if (process.env['ANTHROPIC_API_KEY']) {
     try {
       return new ClaudeOCRProvider();
     } catch {
       return null;
     }
+  }
+
+  // 우선순위 2: 프록시 서버 (배포 모드)
+  const code = inviteCode ?? process.env['INVITE_CODE'];
+  if (code) {
+    return new ProxyOCRProvider(code);
   }
 
   return null;

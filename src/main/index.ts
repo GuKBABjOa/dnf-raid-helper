@@ -93,6 +93,8 @@ function registerShortcuts(): void {
 
 function registerSettingsIpc(): void {
   ipcMain.handle('settings:getInviteCode', () => {
+    // ANTHROPIC_API_KEY가 있으면 dev 모드 → SetupModal 생략
+    if (process.env['ANTHROPIC_API_KEY']) return '__dev__';
     return store.get('inviteCode') ?? null;
   });
 
