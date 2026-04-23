@@ -58,6 +58,7 @@ function getOrCreateWindow(): BrowserWindow {
     isBusy = false;
   });
 
+
   return fetcherWindow;
 }
 
@@ -168,12 +169,10 @@ export async function pollForElement(win: BrowserWindow, selector: string, timeo
 
 async function waitForSearchResultState(
   win: BrowserWindow,
-  expectedName: string | null,
+  _expectedName: string | null,
   timeoutMs: number,
 ): Promise<SearchRenderState> {
   const start = Date.now();
-  let previousHtmlLength = -1;
-  let stableCount = 0;
   let lastSnapshot: SearchRenderSnapshot | null = null;
 
   while (Date.now() - start < timeoutMs) {
@@ -199,22 +198,6 @@ async function waitForSearchResultState(
 
       if (snapshot.hasItems) {
         return { kind: 'has_items', snapshot };
-      }
-
-      const nameReady = !expectedName || snapshot.resultName === expectedName;
-      const htmlStable = snapshot.htmlLength === previousHtmlLength;
-      stableCount = htmlStable ? stableCount + 1 : 0;
-      previousHtmlLength = snapshot.htmlLength;
-
-      // React CSR 특성상 `.sr-result` 컨테이너만 먼저 생기고 내용이 뒤늦게 들어온다.
-      // 검색어가 반영되고 빈 결과 DOM이 여러 번 동일하면 not_found로 해석할 만큼 안정화된 것으로 본다.
-      if (
-        snapshot.hasResultContainer &&
-        nameReady &&
-        !snapshot.hasItems &&
-        stableCount >= 4
-      ) {
-        return { kind: 'settled_empty', snapshot };
       }
     } catch {
       // executeJavaScript 실패 (페이지 전환 중 등) 시 계속 대기

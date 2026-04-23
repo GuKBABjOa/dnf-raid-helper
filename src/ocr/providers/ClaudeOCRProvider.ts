@@ -9,7 +9,7 @@ import type { OCRProvider, OCRRecognitionPayload } from '../contracts';
 
 const PROXY_SERVER_URL = 'https://dnf-raid-helper-production.up.railway.app';
 
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
 const PROMPT = `이 던전앤파이터 파티 신청창 UI에서 3가지를 추출해 JSON으로만 반환해줘.
 - name: 닉네임 (한글/영문/한자/중국 번체/일본어 가나/♥†★☆◆● 같은 특수문자 포함, 보이는 그대로, 절대 철자 교정·자동완성 금지. 이름이 ...으로 잘려있으면 보이는 부분만 반환)
@@ -66,18 +66,15 @@ class ProxyOCRProvider implements OCRProvider {
       });
 
       if (res.status === 401) {
-        console.error('[OCR][proxy] 초대코드 인증 실패');
-        return { name: [], job: [], row3: [] };
+        throw new Error('초대코드가 올바르지 않습니다. 앱 데이터(%appdata%\\dnf-raidleader)를 삭제 후 재실행해주세요.');
       }
       if (!res.ok) {
-        console.error('[OCR][proxy] 서버 오류:', res.status);
-        return { name: [], job: [], row3: [] };
+        throw new Error(`서버 오류: ${res.status}`);
       }
 
       json = await res.json() as ClaudeOCRJson;
     } catch (err) {
-      console.warn('[OCR][proxy] 요청 실패:', err);
-      return { name: [], job: [], row3: [] };
+      throw new Error(`OCR 서버 연결 실패: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     try {
@@ -137,9 +134,11 @@ export class ClaudeOCRProvider implements OCRProvider {
 
 // ─── 팩토리 ───────────────────────────────────────────────────────────────────
 
-export function createOCRProvider(inviteCode?: string | null): OCRProvider | null {
-  // 우선순위 1: SDK 직접 (로컬 개발) — ANTHROPIC_API_KEY 있으면 항상 SDK 우선
-  if (process.env['ANTHROPIC_API_KEY']) {
+export function createOCRProvider(inviteCode?: string | null, devMode?: boolean): OCRProvider | null {
+  // 우선순위 1: SDK 직접 (로컬 개발) — devMode이고 ANTHROPIC_API_KEY 있을 때만
+  // devMode 게이트: app.isPackaged 기반으로 주입. Vite가 process.env 값을 번들에 박더라도
+  // devMode=false면 short-circuit되어 SDK 모드로 진입하지 않음.
+  if (devMode && process.env['ANTHROPIC_API_KEY']) {
     try {
       return new ClaudeOCRProvider();
     } catch {
@@ -156,8 +155,8 @@ export function createOCRProvider(inviteCode?: string | null): OCRProvider | nul
   return null;
 }
 
-export function createClaudeOCRProvider(): ClaudeOCRProvider | null {
-  if (!process.env['ANTHROPIC_API_KEY']) return null;
+export function createClaudeOCRProvider(devMode?: boolean): ClaudeOCRProvider | null {
+  if (!devMode || !process.env['ANTHROPIC_API_KEY']) return null;
   try {
     return new ClaudeOCRProvider();
   } catch {

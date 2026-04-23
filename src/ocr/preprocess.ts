@@ -38,12 +38,10 @@ import type { ImageBuffer } from '../types/ocr';
 export async function preprocessImage(img: ImageBuffer): Promise<ImageBuffer> {
   console.log(`[preprocess] preprocessImage 진입 ${img.width}×${img.height}`);
   const { data, info } = await sharp(img.data)
-    .grayscale()
     .resize(img.width * 3, img.height * 3, {
-      kernel: sharp.kernel.lanczos3,
+      kernel: sharp.kernel.nearest,
     })
     .normalize()
-    .sharpen()
     .png()
     .toBuffer({ resolveWithObject: true });
 

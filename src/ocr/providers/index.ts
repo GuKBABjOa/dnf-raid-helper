@@ -3,6 +3,11 @@ import type { OCRProvider } from '../contracts';
 
 let currentInviteCode: string | null = null;
 let provider: OCRProvider | null = null;
+let devMode = false;
+
+export function setDevMode(isDev: boolean): void {
+  devMode = isDev;
+}
 
 export function setInviteCode(code: string): void {
   currentInviteCode = code;
@@ -11,7 +16,7 @@ export function setInviteCode(code: string): void {
 
 export function getDefaultProvider(): OCRProvider {
   if (!provider) {
-    provider = createOCRProvider(currentInviteCode);
+    provider = createOCRProvider(currentInviteCode, devMode);
   }
   if (!provider) {
     throw new Error(

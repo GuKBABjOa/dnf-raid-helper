@@ -6,7 +6,7 @@ import { registerOverlayIpc } from './ipc/overlay.ipc';
 import { registerCaptureIpc } from './ipc/capture.ipc';
 import { terminateProviderWorkers } from '../ocr/providerRecognize';
 import { destroyBrowserFetcher } from '../scraper/browserFetcher';
-import { setInviteCode } from '../ocr/providers';
+import { setInviteCode, setDevMode } from '../ocr/providers';
 import { LookupCache } from '../scraper/cache';
 import { DEFAULT_OVERLAY_STATE } from '../config/defaults';
 import type { OverlayPersistedState } from '../types/overlay';
@@ -83,6 +83,11 @@ function registerShortcuts(): void {
     mainWindow.webContents.send('overlay:modeChange', payload);
   });
 
+  // Alt+Q: 앱 종료
+  globalShortcut.register('Alt+Q', () => {
+    app.quit();
+  });
+
   // Alt+C: passive 모드에서 캡처 실행
   // edit 모드 중에는 무시 (위치 조정 중 오발 방지)
   globalShortcut.register('Alt+C', () => {
@@ -93,8 +98,8 @@ function registerShortcuts(): void {
 
 function registerSettingsIpc(): void {
   ipcMain.handle('settings:getInviteCode', () => {
-    // ANTHROPIC_API_KEY가 있으면 dev 모드 → SetupModal 생략
-    if (process.env['ANTHROPIC_API_KEY']) return '__dev__';
+    // 패키지 앱이 아닐 때만 dev 모드 → SetupModal 생략
+    if (!app.isPackaged && process.env['ANTHROPIC_API_KEY']) return '__dev__';
     return store.get('inviteCode') ?? null;
   });
 
@@ -112,6 +117,8 @@ function registerSettingsIpc(): void {
 }
 
 app.whenReady().then(() => {
+  setDevMode(!app.isPackaged);
+
   // 저장된 초대코드가 있으면 OCR 프로바이더에 미리 주입
   const savedCode = store.get('inviteCode') ?? null;
   if (savedCode) setInviteCode(savedCode);

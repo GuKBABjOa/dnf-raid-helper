@@ -26,5 +26,5 @@ export const DEFAULT_RAID_CONFIG: RaidConfig = {
 export const DEFAULT_OVERLAY_STATE: OverlayPersistedState = {
   capture: { x: 100, y: 200, width: 420, height: 120 },
   card: { x: 900, y: 100, width: 220, height: 450 },
-  shortcutKey: 'Alt+Z',
+  shortcutKey: 'Alt+A',
 };
